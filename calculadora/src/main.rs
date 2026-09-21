@@ -34,7 +34,6 @@ fn main() {
             break;
         }
 
-        // Tokenizar
         let tokens = match lexer::tokenizar(entrada) {
             Ok(t) => t,
             Err(e) => {
@@ -43,7 +42,7 @@ fn main() {
             }
         };
 
-        // Analisar (parser)
+
         let mut analisador = parser::Parser::new(tokens);
         let expressao = match analisador.analisar() {
             Ok(expr) => expr,
@@ -53,10 +52,8 @@ fn main() {
             }
         };
 
-        // Avaliar
         match ambiente.avaliar(&expressao) {
             Ok(resultado) => {
-                // Formata o resultado de forma legível
                 if resultado == resultado.floor() && resultado.abs() < 1e15 {
                     println!("= {}", resultado as i64);
                 } else {
@@ -65,5 +62,74 @@ fn main() {
             }
             Err(e) => println!("{}", e),
         }
+    }
+}
+
+// =====================================================================
+// Testes Unitários
+// =====================================================================
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EPSILON: f64 = 1e-6;
+
+    fn quase_igual(a: f64, b: f64) -> bool {
+        (a - b).abs() < EPSILON
+    }
+
+    // Helper interno 
+    fn avaliar_teste(entrada: &str, ambiente: &mut avaliador::Ambiente) -> Result<f64, String> {
+        let tokens = lexer::tokenizar(entrada).map_err(|e| e.to_string())?;
+        let mut analisador = parser::Parser::new(tokens);
+        let expressao = analisador.analisar().map_err(|e| e.to_string())?;
+        ambiente.avaliar(&expressao).map_err(|e| e.to_string())
+    }
+
+    #[test]
+    fn deve_calcular_operacoes_com_precedencia() {
+        let mut env = avaliador::Ambiente::new();
+
+        let res = avaliar_teste("2 + 3 * 4", &mut env).unwrap();
+        assert_eq!(res, 14.0);
+
+        let res_parenteses = avaliar_teste("(2 + 3) * 4", &mut env).unwrap();
+        assert_eq!(res_parenteses, 20.0);
+    }
+
+    #[test]
+    fn deve_atribuir_e_persistir_variaveis() {
+        let mut env = avaliador::Ambiente::new();
+
+        let atribuicao = avaliar_teste("x = 10", &mut env).unwrap();
+        assert_eq!(atribuicao, 10.0);
+
+        let calculo = avaliar_teste("x * 2", &mut env).unwrap();
+        assert_eq!(calculo, 20.0);
+    }
+
+    #[test]
+    fn deve_avaliar_funcoes_e_constantes() {
+        let mut env = avaliador::Ambiente::new();
+
+        let raiz = avaliar_teste("sqrt(16)", &mut env).unwrap();
+        assert_eq!(raiz, 4.0);
+
+        let seno = avaliar_teste("sin(pi / 2)", &mut env).unwrap();
+        assert!(quase_igual(seno, 1.0));
+    }
+
+    #[test]
+    fn deve_capturar_erros_de_sintaxe() {
+        let mut env = avaliador::Ambiente::new();
+
+        assert!(avaliar_teste("2 + * 3", &mut env).is_err());
+        assert!(avaliar_teste("sqrt(", &mut env).is_err());
+    }
+
+    #[test]
+    fn deve_falhar_com_variavel_nao_declarada() {
+        let mut env = avaliador::Ambiente::new();
+        assert!(avaliar_teste("variavel_inexistente + 1", &mut env).is_err());
     }
 }
