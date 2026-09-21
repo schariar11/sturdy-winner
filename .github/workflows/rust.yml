@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Actions for Discord
+      uses: Ilshidur/action-discord@0.4.0
     - name: Build
       run: cargo build --verbose
       working-directory: ./calculadora
